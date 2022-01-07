@@ -1,10 +1,7 @@
 from aiogram import Bot, Dispatcher, executor, types
-# import asyncio
 import logging
-# from aiogram.dispatcher.filters import Command, Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
-# from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from decouple import  config
 import requests
@@ -48,22 +45,28 @@ def hotel_search(town, count, sort_by):
         'x-rapidapi-host': "hotels4.p.rapidapi.com"
     }
 
-    response = requests.request("GET", url, headers=headers, params=querystring)
-    resp1 = response.json()
-    town_id = resp1['suggestions'][0]['entities'][0]['destinationId']
+    response = requests.request("GET", url, headers=headers, params=querystring,timeout=10)
+    if response.status_code == 200:
+        resp1 = response.json()
+        town_id = resp1['suggestions'][0]['entities'][0]['destinationId']
+    else:
+        return 'Сервер не доступен'
 
     url = "https://hotels4.p.rapidapi.com/properties/list"
     querystring = {"destinationId": town_id, "pageNumber": "1", "pageSize": count, "checkIn": "2020-01-08",
-                   "checkOut": "2020-01-15", "adults1": "1", "sortOrder": sort_by, "locale": "ru_RU", "currency": "RUB"}
+                    "checkOut": "2020-01-15", "adults1": "1", "sortOrder": sort_by, "locale": "ru_RU", "currency": "RUB"}
 
     headers = {
         'x-rapidapi-key': RapidAPI,
         'x-rapidapi-host': "hotels4.p.rapidapi.com"
     }
 
-    response = requests.request("GET", url, headers=headers, params=querystring)
-    resp = response.json()
-    res = resp['data']['body']['searchResults']['results']
+    response = requests.request("GET", url, headers=headers, params=querystring,timeout=10)
+    if response.status_code == 200:
+        resp = response.json()
+        res = resp['data']['body']['searchResults']['results']
+    else:
+        return  'Сервер не доступен'
 
     res_msg = ''
     for r in res:
@@ -72,7 +75,7 @@ def hotel_search(town, count, sort_by):
         adr = r['address']['streetAddress']
         try:
             price = r['ratePlan']['price']['current']
-        except:
+        except KeyError: # некорректный индекс или ключ,несуществующий ключ IndexError, KeyError
             price = 'Неизвестно'
         res_msg += f'''Название: {name},
 			Рейтинг: {rate},
@@ -85,7 +88,7 @@ def hotel_search(town, count, sort_by):
 
 # low_price, high_price, best_deal(дешевые и близко к центру)
 
-start_message = 'Привет! Я помогу тебе    выбрать самые классные отели по твоим запросам.\n\
+start_message = 'Привет! Я помогу тебе  выбрать самые классные отели по твоим запросам.\n\
 						 Получить самые дешевые отели: команда /lowprice,\n\
 						 Получить самые дор огие отели: команда /highprice, \n\
 						 '
