@@ -8,7 +8,7 @@ class search_high_states(StatesGroup):
     city = State()
     number_city = State()
 
-# @dp.message_handler(commands=['highprice'])
+# @dp.message_handler(commands=['git '])
 async def low_price_0(message: types.Message):
     await message.reply('В каком городе ищем?')
     await search_high_states.city.set()

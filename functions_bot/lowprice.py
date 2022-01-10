@@ -1,12 +1,9 @@
-from aiogram.dispatcher.filters.state import State, StatesGroup
+
 from aiogram.dispatcher import FSMContext
 from aiogram import types, Dispatcher
-from create_bot import search_params
+from create_bot import search_params,dp,search_low_states
 from request.request import hotel_search
 
-class search_low_states(StatesGroup):
-    city = State()
-    number_city = State()
 
 
 # @dp.message_handler(commands=['lowprice'])
@@ -38,3 +35,6 @@ def register_handlers_lowprice(dp : Dispatcher):
     dp.register_message_handler(low_price_0,commands=['lowprice'])
     dp.register_message_handler(low_price_1,state=search_low_states.city)
     dp.register_message_handler(low_price_2,state=search_low_states.number_city)
+
+
+

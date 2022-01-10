@@ -12,4 +12,4 @@ async def cmd_start(message: types.Message):
     await message.answer(start_message)
 
 def register_handlers_start(dp : Dispatcher):
-    dp.register_message_handler(cmd_start,commands=['start'])
+    dp.register_message_handler(cmd_start,commands=['start', 'help'])
