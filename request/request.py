@@ -1,8 +1,6 @@
 import requests
 from create_bot import RapidAPI
-
-
-
+from bs4 import BeautifulSoup
 
 
 def hotel_search(town, count, sort_by):
@@ -19,6 +17,12 @@ def hotel_search(town, count, sort_by):
     if response.status_code == 200:
         resp1 = response.json()
         town_id = resp1['suggestions'][0]['entities'][0]['destinationId']
+        entities = resp1['suggestions'][0]['entities']
+
+        dct = dict()
+        for i in entities:
+           dct.update( {BeautifulSoup(i['caption'],features='html.parser').get_text():i['destinationId']})
+
     else:
         return 'Сервер не доступен'
 
@@ -54,3 +58,5 @@ def hotel_search(town, count, sort_by):
 
 			'''
     return res_msg
+
+
