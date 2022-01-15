@@ -9,7 +9,7 @@ start.register_handlers_start(dp)
 lowprice.register_handlers_lowprice(dp)
 highprice.register_handlers_highprice(dp)
 bestdeal.register_handlers_bestdeal(dp)
-keyboard.register_handlers_examination(dp)
+lowprice.register_handlers_examination(dp)
 
 
 

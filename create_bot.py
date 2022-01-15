@@ -12,7 +12,8 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 
 search_params = {'town': 0,
-                 'count': 0}
+                 'count': 0,
+                 'destinationId':0}
 
 class search_low_states(StatesGroup):
     city = State()
