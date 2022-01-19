@@ -13,12 +13,23 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 
 search_params = {'town': 0,
                  'count': 0,
-                 'destinationId':0}
+                 'destinationId':0,
+                 'price':0,
+                 'distens':0}
 
 class search_low_states(StatesGroup):
     city = State()
     number_city = State()
 
+class search_high_states(StatesGroup):
+    city = State()
+    number_city = State()
+
+class search_best_states(StatesGroup):
+    city = State()
+    number_city = State()
+    price = State()
+    distens = State()
 
 
 

@@ -4,7 +4,7 @@ from create_bot import dp
 
 start_message = 'Привет! Я помогу тебе  выбрать самые классные отели по твоим запросам.\n\
 						 Получить самые дешевые отели: команда /lowprice,\n\
-						 Получить самые дор огие отели: команда /highprice, \n\
+						 Получить самые дорогие отели: команда /highprice, \n\
 						 '
 
 # @dp.message_handler(commands=['start'])
