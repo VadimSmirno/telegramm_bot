@@ -1,1 +1,1 @@
-from data_base import sqlite_bd
+from data_base import peewee_bd

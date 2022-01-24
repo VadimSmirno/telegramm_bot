@@ -1,5 +1,5 @@
 from aiogram import types, Dispatcher
-from create_bot import dp
+
 
 
 start_message = 'Привет! Я помогу тебе  выбрать самые классные отели по твоим запросам.\n\
