@@ -27,9 +27,11 @@ def hotel_search(destinationId, sort_by, count):
         else:
             return  'Сервер не доступен'
 
-        res_msg = ''
+        lst_db_data=[]
+
         for r in res:
             id_hotels = r['id']
+            url_photo = photo_hotels(id_hotels)
             name = r['name']
             rate = r['starRating']
             try:
@@ -40,22 +42,10 @@ def hotel_search(destinationId, sort_by, count):
                 price = r['ratePlan']['price']['current']
             except KeyError: # некорректный индекс или ключ,несуществующий ключ IndexError, KeyError
                 price = 'Неизвестно'
-            peewee_bd.HotelInfo.get_or_create(name=name,
-                                              id_hotels=id_hotels,
-                                              rate=rate,
-                                              addrres=adr,
-                                              price=price,
-                                              data=datetime.datetime.now(),
-                                              distens='',
-                                              photo_url='')
-            res_msg +=f'''Название: {name},
-                Рейтинг: {rate},
-                Адрес:{adr},
-                Цена:{price}
-    
-                '''
 
-        return res_msg
+            lst_db_data.append([name,id_hotels,rate,adr,price,datetime.datetime.now(),url_photo[0],url_photo[1],''])
+        with peewee_bd.db:
+            peewee_bd.HotelInfo.insert_many(lst_db_data).execute()
     except:
         return 'Ошибка!'
 
@@ -102,7 +92,10 @@ def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
             lst_bestdeal = []
             res_masg=''
             for i in res:
+                id_hotels = i['id']
+                url_photo = photo_hotels(id_hotels)
                 name = i['name']
+                rate = i['starRating']
                 try:
                     address = i['address']['streetAddress']
                 except:
@@ -119,29 +112,48 @@ def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
                     price = i['ratePlan']['price']['current']
                 except:
                     price = 'Неизвестно'
-                result_str = name , address, price
+                result_str = name , address, price,id_hotels,url_photo,rate
                 if distensMin<distance<distensMax:
                     lst_bestdeal.append([result_str,distance])
             lst_bestdeal = sorted(lst_bestdeal,key=lambda x:x[1])
 
             result = lst_bestdeal[:-(len(lst_bestdeal)-count)]
             try:
-                for i in result:
-                    name_hostel = i[0][0]
-                    address_hostel = i[0][1]
-                    distance_cintr = i[1]
-                    price_hotels = i[0][2]
-                    res_masg += f'''
-                    Название: {name_hostel},
-                    Адрес: {address_hostel},
-                    Расстояние до центра: {distance_cintr}
-                    Цена: {price_hotels}
-        
-                    '''
+                lst_data_base =[]
+                for info_on_hotels in result:
+                    name_hostel = info_on_hotels[0][0]
+                    address_hostel = info_on_hotels[0][1]
+                    distance_cintr = info_on_hotels[1]
+                    price_hotels = info_on_hotels[0][2]
+                    id_hotels = info_on_hotels[0][3]
+                    url_photo = info_on_hotels[0][4]
+                    rate = info_on_hotels[0][5]
+                    lst_data_base.append(
+                        [name_hostel, id_hotels, rate, address_hostel, price_hotels, datetime.datetime.now(),
+                         url_photo[0], url_photo[1], distance_cintr])
+                    with peewee_bd.db:
+                        peewee_bd.HotelInfo.insert_many(lst_data_base).execute()
             except:
                 return 'По Вашим запросам ничего не найдено'
             return res_masg
     except:
         return 'Ошибка запроса'
+
+def photo_hotels(id_hotels):
+    url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
+
+    querystring = {"id": id_hotels}
+
+    headers = {
+        'x-rapidapi-host': "hotels4.p.rapidapi.com",
+        'x-rapidapi-key': "1c53557662msh988d1a96d4da0d7p152179jsnce4697853b15"
+    }
+
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    url_photo1= response.json()['hotelImages'][0]['baseUrl']
+    url_photo2 = response.json()['hotelImages'][1]['baseUrl']
+    url_photo1 = str(url_photo1).replace('{size}','z')
+    url_photo2 = str(url_photo2).replace('{size}', 'z')
+    return [url_photo1,url_photo2]
 
 

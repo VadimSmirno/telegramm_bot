@@ -68,10 +68,6 @@ async def low_price_2(message: types.Message, state: FSMContext):
                        ['Да', 'Нет']]
         keyboard.add(*button_list)
         await message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
-        # sort_by = 'PRICE'
-        # await message.answer('Уже ищу!')
-        # msg = hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
-        # await message.answer(msg)
         await state.reset_state()  # сброс состояний
 
     except:
@@ -83,20 +79,40 @@ async def low_price_2(message: types.Message, state: FSMContext):
 async def photo(massege: types.CallbackQuery):
     await massege.answer('Подтверждено')
     if massege['data'][2:]== 'Да':
-        await massege.message.answer('Отправлю фото')
-        url_photo = 'https://exp.cdn-hotels.com/hotels/50000000/49230000/49225200/49225185/13ac93da_z.jpg'
-        url = 'https://exp.cdn-hotels.com/hotels/50000000/49230000/49225200/49225185/2b771507_z.jpg'
-        medias = types.MediaGroup()
-        [medias.attach_photo(i) for i in [url_photo,url]]
-        await massege.message.answer_media_group(media=medias)
+        sort_by = 'PRICE'
+        await massege.message.answer('Уже ищу!')
+        hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
+        with peewee_bd.db:
+            msg = peewee_bd.HotelInfo.select().\
+                order_by(peewee_bd.HotelInfo.id.desc()).\
+                limit(int(search_params['count'])) #  сортируем таблицу бд в обратном порядке и забираем первые данные
+
+        for info_on_hotels in msg:
+            res_msg =f'Название: {info_on_hotels.name}\n' \
+                     f'Рейтинг: {info_on_hotels.rate}\n' \
+                     f'Адрес:{info_on_hotels.addrres}\n' \
+                     f'Цена:{info_on_hotels.price}\n'
+            await massege.message.answer(res_msg)
+            medias = types.MediaGroup()
+            [medias.attach_photo(j) for j in[ info_on_hotels.photo_url1,info_on_hotels.photo_url2]]
+            await massege.message.answer_media_group(media=medias)
 
 
     else:
 
         sort_by = 'PRICE'
         await massege.message.answer('Уже ищу!')
-        msg = hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
-        await massege.message.answer(msg)
+        hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
+        msg = peewee_bd.HotelInfo.select().\
+            order_by(peewee_bd.HotelInfo.id.desc()).\
+            limit(int(search_params['count']))
+        for info_on_hotils in msg:
+            res_msg = f'Название: {info_on_hotils.name}\n' \
+                      f'Рейтинг: {info_on_hotils.rate}\n' \
+                      f'Адрес:{info_on_hotils.addrres}\n' \
+                      f'Цена:{info_on_hotils.price}\n'
+            await massege.message.answer(res_msg)
+
 
 
 
