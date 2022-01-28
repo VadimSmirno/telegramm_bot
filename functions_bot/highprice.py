@@ -5,6 +5,7 @@ from aiogram.dispatcher.filters import Text
 from create_bot import search_params
 from request.request import hotel_search, locations_city
 from create_bot import search_high_states
+from data_base import peewee_bd
 import logging
 
 
@@ -48,16 +49,50 @@ async def low_price_2(message: types.Message, state: FSMContext):
         search_params['count'] = int(count)
         if int(search_params['count']) > 5 or int(search_params['count']) < 0:
             raise Exception
-        sort_by = 'PRICE_HIGHEST_FIRST'
-        await message.answer('Уже ищу!')
-        msg = hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
-        await message.answer(msg)
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        button_list = [InlineKeyboardButton(text=number, callback_data=f'qw{number}') for number in
+                       ['Да', 'Нет']]
+        keyboard.add(*button_list)
+        await message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
         await state.reset_state()
     except:
         logging.error('Пользователь неправильно ввел данные')
         await message.answer('Некорректный ввод.')
         await message.answer('Введите число не более 5')
 
+# @dp.register_callback_query_handler(Text(startswith='qw'))
+async def photo_high(massege:types.CallbackQuery):
+    await massege.answer('Подтверждено')
+    if massege['data'][2:]=='Да':
+        sort_by = 'PRICE_HIGHEST_FIRST'
+        await massege.message.answer('Уже ищу')
+        hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
+        with peewee_bd.db:
+            msg = peewee_bd.HotelInfo.select(). \
+                order_by(peewee_bd.HotelInfo.id.desc()). \
+                limit(int(search_params['count']))  # сортируем таблицу бд в обратном порядке и забираем первые данные
+        for info_on_hotels in msg:
+            res_msg = f'Название: {info_on_hotels.name}\n' \
+                      f'Рейтинг: {info_on_hotels.rate}\n' \
+                      f'Адрес:{info_on_hotels.addrres}\n' \
+                      f'Цена:{info_on_hotels.price}\n'
+            await massege.message.answer(res_msg)
+            medias = types.MediaGroup() # отправляем группу фотографий
+            [medias.attach_photo(j) for j in [info_on_hotels.photo_url1, info_on_hotels.photo_url2]]
+            await massege.message.answer_media_group(media=medias)
+    else:
+        sort_by = 'PRICE_HIGHEST_FIRST'
+        await massege.message.answer('Уже ищу!')
+        hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
+        msg = peewee_bd.HotelInfo.select(). \
+            order_by(peewee_bd.HotelInfo.id.desc()). \
+            limit(int(search_params['count']))
+        for info_on_hotils in msg:
+            res_msg = f'Название: {info_on_hotils.name}\n' \
+                      f'Рейтинг: {info_on_hotils.rate}\n' \
+                      f'Адрес:{info_on_hotils.addrres}\n' \
+                      f'Цена:{info_on_hotils.price}\n'
+            await massege.message.answer(res_msg)
 
 def register_handlers_highprice(dp : Dispatcher):
     dp.register_message_handler(low_price_0,commands=['highprice'])
@@ -66,3 +101,4 @@ def register_handlers_highprice(dp : Dispatcher):
 
 def register_handlers_callback_query_handler(dp : Dispatcher):
     dp.register_callback_query_handler(location_confirmation, Text(startswith='values'))
+    dp.register_callback_query_handler(photo_high, Text(startswith='qw'))
