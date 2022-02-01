@@ -66,7 +66,7 @@ async def message_check(massege: types.Message):
             await massege.answer('Некорректные данные')
             await massege.answer('Введите диапазон цен через "-", например 1000-5000')
             await search_best_states.price.set()
-    except:
+    except Exception:
         logging.error('Пользователь ввел некорректные данные')
         await massege.answer('Некорректные данные')
         await massege.answer('Введите диапазон цен через "-", например 1000-5000')
@@ -114,31 +114,37 @@ async def photo_bestdeal(massege: types.CallbackQuery):
     distensMax = float(distens[1])
     if massege['data'][2:] == 'Да':
         await massege.message.answer('Уже ищу!')
-        bestdeal(search_params['destinationId'], priceMin, priceMax, distensMin, distensMax,
-                           int(search_params['count']))
-        with peewee_bd.db:
-            msg = peewee_bd.HotelInfo.select().\
-                order_by(peewee_bd.HotelInfo.id.desc()).\
-                limit(int(search_params['count']))
-            for info_on_hotels in msg:
-                res_msg = f'Название: {info_on_hotels.name}\n' \
-                          f'Рейтинг: {info_on_hotels.rate}\n' \
-                          f'Адрес:{info_on_hotels.addrres}\n' \
-                          f'Цена:{info_on_hotels.price}\n'
-                await massege.message.answer(res_msg)
-                medias = types.MediaGroup()
-                [medias.attach_photo(j) for j in [info_on_hotels.photo_url1, info_on_hotels.photo_url2]]
-                await massege.message.answer_media_group(media=medias)
+        try:
+            res = bestdeal(search_params['destinationId'], priceMin, priceMax, distensMin, distensMax, search_params['count'])
+            if res == 'По Вашим запросам ничего не найдено':
+                await massege.message.answer('По Вашим запросам ничего не найдено')
+            else:
+                with peewee_bd.db:
+                    msg = peewee_bd.HotelInfo.select().\
+                        order_by(peewee_bd.HotelInfo.id.desc()).\
+                        limit(int(search_params['count']))
+                    for info_on_hotels in msg:
+                        res_msg = f'Название: {info_on_hotels.name}\n' \
+                                  f'Рейтинг: {info_on_hotels.rate}\n' \
+                                  f'Адрес:{info_on_hotels.addrres}\n' \
+                                  f'Цена:{info_on_hotels.price}\n' \
+                                  f'Расстояние до центра: {info_on_hotels.distens} км'
+                        await massege.message.answer(res_msg)
+                        medias = types.MediaGroup()
+                        [medias.attach_photo(url) for url in [info_on_hotels.photo_url1, info_on_hotels.photo_url2]]
+                        await massege.message.answer_media_group(media=medias)
+        except:
+            logging.error('Ошибка в функции bestdeal')
+            await massege.message.answer('По Вашим запросам ничего не найдено')
 
     else:
 
         try:
-            bestdeal(search_params['destinationId'], priceMin, priceMax, distensMin, distensMax,
-                           int(search_params['count']))
+            bestdeal(search_params['destinationId'], priceMin, priceMax, distensMin, distensMax,search_params['count'])
             with peewee_bd.db:
                 msg = peewee_bd.HotelInfo.select(). \
                     order_by(peewee_bd.HotelInfo.id.desc()). \
-                    Limit(int(search_params['count']))
+                    limit(int(search_params['count']))
                 for info_on_hotels in msg:
                     res_msg = f'Название: {info_on_hotels.name}\n' \
                               f'Рейтинг: {info_on_hotels.rate}\n' \

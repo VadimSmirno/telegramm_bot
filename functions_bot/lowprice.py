@@ -70,7 +70,7 @@ async def low_price_2(message: types.Message, state: FSMContext):
         await message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
         await state.reset_state()  # сброс состояний
 
-    except:
+    except Exception:
         logging.error('Пользователь неправильно ввел данные')
         await message.answer('Некорректный ввод.')
         await message.answer('Введите число не более 5')

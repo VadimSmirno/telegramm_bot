@@ -3,6 +3,7 @@ from create_bot import RapidAPI
 from bs4 import BeautifulSoup
 from data_base import peewee_bd
 import datetime
+import time
 
 
 
@@ -31,6 +32,7 @@ def hotel_search(destinationId, sort_by, count):
 
         for r in res:
             id_hotels = r['id']
+            time.sleep(1)
             url_photo = photo_hotels(id_hotels)
             name = r['name']
             rate = r['starRating']
@@ -43,7 +45,7 @@ def hotel_search(destinationId, sort_by, count):
             except KeyError: # некорректный индекс или ключ,несуществующий ключ IndexError, KeyError
                 price = 'Неизвестно'
 
-            lst_db_data.append([name,id_hotels,rate,adr,price,datetime.datetime.now(),url_photo[0],url_photo[1],''])
+            lst_db_data.append([name,id_hotels,rate,adr,price,datetime.datetime.now(),url_photo[0],url_photo[1],0.0])
         with peewee_bd.db:
             peewee_bd.HotelInfo.insert_many(lst_db_data).execute()
     except:
@@ -69,7 +71,7 @@ def locations_city(town):
                 dct.update({BeautifulSoup(i['caption'], features='html.parser').get_text(): i['destinationId']})
             return dct
         else:
-            return 'Сервер не доступен!'
+            logging.error('Сервер не доступен!')
     except Exception as e:
         logging.error(e)
         logging.error('Ошибка запроса')
@@ -77,12 +79,12 @@ def locations_city(town):
 def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
     url = "https://hotels4.p.rapidapi.com/properties/list"
 
-    querystring = {"destinationId": destinationId, "pageNumber": "1", "pageSize": "25", "checkIn": "2020-01-08",
+    querystring = {"destinationId": destinationId, "pageNumber": "1", "pageSize": "10", "checkIn": "2020-01-08",
                    "checkOut": "2020-01-15", "adults1": "1","priceMin":priceMin,"priceMax":priceMax, "sortOrder": "PRICE", "locale": "ru_RU", "currency": "RUB"}
 
     headers = {
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
-        'x-rapidapi-key': "1c53557662msh988d1a96d4da0d7p152179jsnce4697853b15"
+        'x-rapidapi-key': RapidAPI
     }
     try:
         response = requests.request("GET", url, headers=headers, params=querystring)
@@ -90,34 +92,41 @@ def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
             resp = response.json()
             res = resp['data']['body']['searchResults']['results']
             lst_bestdeal = []
-            res_masg=''
+
             for i in res:
                 id_hotels = i['id']
-                url_photo = photo_hotels(id_hotels)
+                time.sleep(1)
+                url_photo = photo_hotels(int(id_hotels))
                 name = i['name']
                 rate = i['starRating']
                 try:
                     address = i['address']['streetAddress']
-                except:
+                except KeyError:
                     logging.error('Нет ключа адрес')
                     address = 'Неизвестно'
                 try:
                     distance = i['landmarks'][0]['distance']
                     distance = distance.replace(',','.')
                     distance = float(re.sub('[А-яA-z ]','',distance))
-                except:
+                except KeyError:
                     logging.error('Нет ключа дистанция')
-                    distance = 'Неизвестно'
+                    distance = 0.0
                 try:
                     price = i['ratePlan']['price']['current']
-                except:
+                except KeyError:
                     price = 'Неизвестно'
                 result_str = name , address, price,id_hotels,url_photo,rate
-                if distensMin<distance<distensMax:
+                if int(distensMin)<distance<int(distensMax):
                     lst_bestdeal.append([result_str,distance])
+
+
             lst_bestdeal = sorted(lst_bestdeal,key=lambda x:x[1])
 
-            result = lst_bestdeal[:-(len(lst_bestdeal)-count)]
+
+            result = lst_bestdeal[:-(len(lst_bestdeal)-int(count))]
+            if len(result)==0:
+                return 'По Вашим запросам ничего не найдено'
+
             try:
                 lst_data_base =[]
                 for info_on_hotels in result:
@@ -128,15 +137,16 @@ def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
                     id_hotels = info_on_hotels[0][3]
                     url_photo = info_on_hotels[0][4]
                     rate = info_on_hotels[0][5]
+
                     lst_data_base.append(
                         [name_hostel, id_hotels, rate, address_hostel, price_hotels, datetime.datetime.now(),
                          url_photo[0], url_photo[1], distance_cintr])
-                    with peewee_bd.db:
-                        peewee_bd.HotelInfo.insert_many(lst_data_base).execute()
-            except:
+
+                with peewee_bd.db:
+                    peewee_bd.HotelInfo.insert_many(lst_data_base).execute()
+            except Exception:
                 return 'По Вашим запросам ничего не найдено'
-            return res_masg
-    except:
+    except Exception:
         return 'Ошибка запроса'
 
 def photo_hotels(id_hotels):
@@ -146,14 +156,18 @@ def photo_hotels(id_hotels):
 
     headers = {
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
-        'x-rapidapi-key': "1c53557662msh988d1a96d4da0d7p152179jsnce4697853b15"
+        'x-rapidapi-key': RapidAPI
     }
-
-    response = requests.request("GET", url, headers=headers, params=querystring)
-    url_photo1= response.json()['hotelImages'][0]['baseUrl']
-    url_photo2 = response.json()['hotelImages'][1]['baseUrl']
-    url_photo1 = str(url_photo1).replace('{size}','z')
-    url_photo2 = str(url_photo2).replace('{size}', 'z')
-    return [url_photo1,url_photo2]
+    try:
+        response = requests.request("GET", url, headers=headers, params=querystring,timeout=5)
+        url_photo1= response.json()['hotelImages'][0]['baseUrl']
+        url_photo2 = response.json()['hotelImages'][1]['baseUrl']
+        url_photo1 = str(url_photo1).replace('{size}','z')
+        url_photo2 = str(url_photo2).replace('{size}', 'z')
+        return [url_photo1,url_photo2]
+    except Exception as err:
+        logging.error(err)
+        return ['https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png',
+                'https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png']
 
 
