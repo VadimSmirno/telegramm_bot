@@ -48,11 +48,11 @@ def hotel_search(destinationId, sort_by, count):
             lst_db_data.append([name,id_hotels,rate,adr,price,datetime.datetime.now(),url_photo[0],url_photo[1],0.0])
         with peewee_bd.db:
             peewee_bd.HotelInfo.insert_many(lst_db_data).execute()
-    except:
+    except (ConnectionError,TimeoutError):
         return 'Ошибка!'
 
 
-def locations_city(town):
+def locations_city(town) -> dict:
     url = "https://hotels4.p.rapidapi.com/locations/search"
 
     querystring = {"query": town, "locale": "ru_RU", "currency": "RUB"}
@@ -63,6 +63,7 @@ def locations_city(town):
     }
     try:
         response = requests.request("GET", url, headers=headers, params=querystring, timeout=10)
+        logging.info(response.status_code)
         if response.status_code == 200:
             resp1 = response.json()
             entities = resp1['suggestions'][0]['entities']
@@ -72,7 +73,7 @@ def locations_city(town):
             return dct
         else:
             logging.error('Сервер не доступен!')
-    except Exception as e:
+    except (TimeoutError,AttributeError,KeyError) as e:
         logging.error(e)
         logging.error('Ошибка запроса')
 
@@ -146,7 +147,8 @@ def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
                     peewee_bd.HotelInfo.insert_many(lst_data_base).execute()
             except Exception:
                 return 'По Вашим запросам ничего не найдено'
-    except Exception:
+    except (TimeoutError,AttributeError,KeyError) as err:
+        logging.error(err)
         return 'Ошибка запроса'
 
 def photo_hotels(id_hotels):
@@ -160,8 +162,9 @@ def photo_hotels(id_hotels):
     }
     try:
         response = requests.request("GET", url, headers=headers, params=querystring,timeout=5)
-        url_photo1= response.json()['hotelImages'][0]['baseUrl']
-        url_photo2 = response.json()['hotelImages'][1]['baseUrl']
+        url=response.json()
+        url_photo1 = url['hotelImages'][0]['baseUrl']
+        url_photo2 = url['hotelImages'][1]['baseUrl']
         url_photo1 = str(url_photo1).replace('{size}','z')
         url_photo2 = str(url_photo2).replace('{size}', 'z')
         return [url_photo1,url_photo2]

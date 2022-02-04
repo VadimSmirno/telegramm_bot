@@ -10,25 +10,37 @@ import logging
 
 
 
-# @dp.message_handler(commands=['git '])
-async def low_price_0(message: types.Message):
+
+async def high_price_0(message: types.Message):
+
+    """" После команды highprice спрашиваем у пользователя 
+         в каком городе ищем отель, запоминаем что он ввел
+         через машино состояние"""""
+
     await message.reply('В каком городе ищем?')
     await search_high_states.city.set() # переход в машиносостояние город
 
 
 # @dp.message_handler(state=search_high_states.city)
-async def low_price_1(message: types.Message, state: FSMContext):
+async def high_price_1(message: types.Message, state: FSMContext):
+
+    """" делаем request запрос и вытаскиваем чарез API название 
+         локации и id локации в виде словаря
+         {локация : id локации  и создаем inlane клавиатуру }"""""
+
     town = message.text
     search_params['town'] = town
-    locations_city_dct = locations_city(town=town)
+    try:
+        locations_city_dct = locations_city(town=town)
 
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    button_list = [InlineKeyboardButton(text=key, callback_data=f'values{values}')
-                   for key, values in locations_city_dct.items()]
-    keyboard.add(*button_list)
-
-    await message.answer('Подтвердите', reply_markup=keyboard)
-    await state.reset_state()
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        button_list = [InlineKeyboardButton(text=key, callback_data=f'values{values}')
+                       for key, values in locations_city_dct.items()]
+        keyboard.add(*button_list)
+        await message.answer('Подтвердите', reply_markup=keyboard)
+        await state.reset_state()
+    except AttributeError:
+        logging.error('Ошибка в функции locations_city')
 
 # @dp.callback_query_handler(Text(startswith='num'))
 async def location_confirmation(coll : types.CallbackQuery):
@@ -43,7 +55,12 @@ async def location_confirmation(coll : types.CallbackQuery):
 
 
 # @dp.message_handler(state=search_high_states.number_city)
-async def low_price_2(message: types.Message, state: FSMContext):
+async def high_price_2(message: types.Message, state: FSMContext):
+
+    """Отлавливаем сколько нужно вывести отелей, если данные некоррекиные - 
+    переспрашиваем 
+    Сождаем кнопки (Да, Нет) спрашиваем нужны ли фото"""""
+
     count = message.text
     try:
         search_params['count'] = int(count)
@@ -62,10 +79,16 @@ async def low_price_2(message: types.Message, state: FSMContext):
 
 # @dp.register_callback_query_handler(Text(startswith='qw'))
 async def photo_high(massege:types.CallbackQuery):
+
+    """ Вызываем функцию hotel_search() и отправляем сообщение пользователю
+     из базы данных с нужной информацией
+     Если пользователь в функции high_price_2 нажал Да, то 
+      отправляем фотографии"""""
+
     await massege.answer('Подтверждено')
     if massege['data'][2:]=='Да':
         sort_by = 'PRICE_HIGHEST_FIRST'
-        await massege.message.answer('Уже ищу')
+        await massege.message.answer('Уже ищу!')
         hotel_search(search_params['destinationId'], sort_by, str(search_params['count']))
         with peewee_bd.db:
             msg = peewee_bd.HotelInfo.select(). \
@@ -76,7 +99,12 @@ async def photo_high(massege:types.CallbackQuery):
                       f'Рейтинг: {info_on_hotels.rate}\n' \
                       f'Адрес:{info_on_hotels.addrres}\n' \
                       f'Цена:{info_on_hotels.price}\n'
-            await massege.message.answer(res_msg)
+            url_hotels = InlineKeyboardMarkup(row_width=1)
+            url_botton = InlineKeyboardButton(text='Ссылка на отель',
+                                              url=f'https://ru.hotels.com/ho{info_on_hotels.id_hotels}')
+            url_hotels.add(url_botton)
+            await massege.message.answer(res_msg,reply_markup=url_hotels)
+
             medias = types.MediaGroup() # отправляем группу фотографий
             [medias.attach_photo(j) for j in [info_on_hotels.photo_url1, info_on_hotels.photo_url2]]
             await massege.message.answer_media_group(media=medias)
@@ -87,18 +115,28 @@ async def photo_high(massege:types.CallbackQuery):
         msg = peewee_bd.HotelInfo.select(). \
             order_by(peewee_bd.HotelInfo.id.desc()). \
             limit(int(search_params['count']))
-        for info_on_hotils in msg:
-            res_msg = f'Название: {info_on_hotils.name}\n' \
-                      f'Рейтинг: {info_on_hotils.rate}\n' \
-                      f'Адрес:{info_on_hotils.addrres}\n' \
-                      f'Цена:{info_on_hotils.price}\n'
-            await massege.message.answer(res_msg)
+        for info_on_hotels in msg:
+            res_msg = f'Название: {info_on_hotels.name}\n' \
+                      f'Рейтинг: {info_on_hotels.rate}\n' \
+                      f'Адрес:{info_on_hotels.addrres}\n' \
+                      f'Цена:{info_on_hotels.price}\n'
+            url_hotels = InlineKeyboardMarkup(row_width=1)
+            url_botton = InlineKeyboardButton(text='Ссылка на отель',
+                                              url=f'https://ru.hotels.com/ho{info_on_hotels.id_hotels}')
+            url_hotels.add(url_botton)
+            await massege.message.answer(res_msg,reply_markup=url_hotels)
 
 def register_handlers_highprice(dp : Dispatcher):
-    dp.register_message_handler(low_price_0,commands=['highprice'])
-    dp.register_message_handler(low_price_1,state=search_high_states.city)
-    dp.register_message_handler(low_price_2,state=search_high_states.number_city)
+
+    """ Регистрируем message_handler """""
+
+    dp.register_message_handler(high_price_0,commands=['highprice'])
+    dp.register_message_handler(high_price_1,state=search_high_states.city)
+    dp.register_message_handler(high_price_2,state=search_high_states.number_city)
 
 def register_handlers_callback_query_handler(dp : Dispatcher):
+
+    """ Регистрируем callback_query_handler"""""
+
     dp.register_callback_query_handler(location_confirmation, Text(startswith='values'))
     dp.register_callback_query_handler(photo_high, Text(startswith='qw'))

@@ -27,18 +27,19 @@ async def low_price_1(message: types.Message, state: FSMContext):
      локации и id локации в виде словаря
      {локация : id локации  и создаем inlane клавиатуру }"""""
 
+    try:
+        town = message.text  # город
+        search_params['town'] = town
+        locations_city_dct = locations_city(town=town)
 
-    town = message.text  # город
-    search_params['town'] = town
-    locations_city_dct = locations_city(town=town)
-
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    button_list = [InlineKeyboardButton(text=key, callback_data=f'id{values}')
-                   for key, values in locations_city_dct.items()]
-    keyboard.add(*button_list)
-    await message.answer('Подтвердите', reply_markup=keyboard)
-    await state.reset_state()
-
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        button_list = [InlineKeyboardButton(text=key, callback_data=f'id{values}')
+                       for key, values in locations_city_dct.items()]
+        keyboard.add(*button_list)
+        await message.answer('Подтвердите', reply_markup=keyboard)
+        await state.reset_state()
+    except AttributeError:
+        logging.error('Ошибка в функции locations_city')
 
 # @dp.callback_query_handler(Text(startswith='num'))
 async def location_confirmation(coll : types.CallbackQuery):
@@ -56,7 +57,8 @@ async def location_confirmation(coll : types.CallbackQuery):
 async def low_price_2(message: types.Message, state: FSMContext):
 
     """ из машино-состояния забираем количество отелей
-     делаем request запрос и отправляем в чат нужную информацию"""""
+     делаем request запрос и отправляем в чат нужную информацию
+     создаем инлайн кнопки (Да,Нет) запрашиваем нужны ли фото"""""
 
     count = message.text
     try:
@@ -78,6 +80,8 @@ async def low_price_2(message: types.Message, state: FSMContext):
 # @dp.register_callback_query_handler(Text(startswith='да'))
 async def photo(massege: types.CallbackQuery):
     await massege.answer('Подтверждено')
+
+
     if massege['data'][2:]== 'Да':
         sort_by = 'PRICE'
         await massege.message.answer('Уже ищу!')
@@ -92,7 +96,10 @@ async def photo(massege: types.CallbackQuery):
                      f'Рейтинг: {info_on_hotels.rate}\n' \
                      f'Адрес:{info_on_hotels.addrres}\n' \
                      f'Цена:{info_on_hotels.price}\n'
-            await massege.message.answer(res_msg)
+            url_hotels = InlineKeyboardMarkup(row_width=1)
+            url_botton = InlineKeyboardButton(text='Ссылка на отель', url=f'https://ru.hotels.com/ho{info_on_hotels.id_hotels}')
+            url_hotels.add(url_botton)
+            await massege.message.answer(res_msg,reply_markup=url_hotels)
             medias = types.MediaGroup()
             [medias.attach_photo(j) for j in[ info_on_hotels.photo_url1,info_on_hotels.photo_url2]]
             await massege.message.answer_media_group(media=medias)
@@ -111,7 +118,11 @@ async def photo(massege: types.CallbackQuery):
                       f'Рейтинг: {info_on_hotils.rate}\n' \
                       f'Адрес:{info_on_hotils.addrres}\n' \
                       f'Цена:{info_on_hotils.price}\n'
-            await massege.message.answer(res_msg)
+            url_hotels = InlineKeyboardMarkup(row_width=1)
+            url_botton = InlineKeyboardButton(text='Ссылка на отель',
+                                              url=f'https://ru.hotels.com/ho{info_on_hotils.id_hotels}')
+            url_hotels.add(url_botton)
+            await massege.message.answer(res_msg,reply_markup=url_hotels)
 
 
 
