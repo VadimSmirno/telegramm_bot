@@ -1,4 +1,5 @@
 import requests,re,logging
+from requests.exceptions import Timeout
 from create_bot import RapidAPI
 from bs4 import BeautifulSoup
 from data_base import peewee_bd
@@ -171,7 +172,7 @@ def photo_hotels(id_hotels):
             return [url_photo1,url_photo2]
         else:
             logging.error('сервер недоступен ошибка в photo_hotels')
-    except TimeoutError as err:
+    except Timeout  as err:
         logging.error(err)
         return ['https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png',
                 'https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png']
