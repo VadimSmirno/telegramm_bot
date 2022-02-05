@@ -15,6 +15,7 @@ highprice.register_handlers_callback_query_handler(dp)
 bestdeal.register_handlers_bestdeal(dp)
 bestdeal.register_callback_query_handler(dp)
 history.register_history(dp)
+
 peewee_bd.start_db()
 
 

@@ -22,6 +22,7 @@ def hotel_search(destinationId, sort_by, count):
 
     try:
         response = requests.request("GET", url, headers=headers, params=querystring,timeout=10)
+        logging.info(response.status_code)
         if response.status_code == 200:
             resp = response.json()
             res = resp['data']['body']['searchResults']['results']
@@ -53,14 +54,15 @@ def hotel_search(destinationId, sort_by, count):
 
 
 def locations_city(town) -> dict:
-    url = "https://hotels4.p.rapidapi.com/locations/search"
+    url = "https://hotels4.p.rapidapi.com/locations/v2/search"
 
     querystring = {"query": town, "locale": "ru_RU", "currency": "RUB"}
 
     headers = {
-        'x-rapidapi-key': RapidAPI,
-        'x-rapidapi-host': "hotels4.p.rapidapi.com"
+        'x-rapidapi-host': "hotels4.p.rapidapi.com",
+        'x-rapidapi-key': RapidAPI
     }
+
     try:
         response = requests.request("GET", url, headers=headers, params=querystring, timeout=10)
         logging.info(response.status_code)
@@ -122,8 +124,6 @@ def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
 
 
             lst_bestdeal = sorted(lst_bestdeal,key=lambda x:x[1])
-
-
             result = lst_bestdeal[:-(len(lst_bestdeal)-int(count))]
             if len(result)==0:
                 return 'По Вашим запросам ничего не найдено'
@@ -162,13 +162,16 @@ def photo_hotels(id_hotels):
     }
     try:
         response = requests.request("GET", url, headers=headers, params=querystring,timeout=5)
-        url=response.json()
-        url_photo1 = url['hotelImages'][0]['baseUrl']
-        url_photo2 = url['hotelImages'][1]['baseUrl']
-        url_photo1 = str(url_photo1).replace('{size}','z')
-        url_photo2 = str(url_photo2).replace('{size}', 'z')
-        return [url_photo1,url_photo2]
-    except Exception as err:
+        if response.status_code == 200:
+            url=response.json()
+            url_photo1 = url['hotelImages'][0]['baseUrl']
+            url_photo2 = url['hotelImages'][1]['baseUrl']
+            url_photo1 = str(url_photo1).replace('{size}','z')
+            url_photo2 = str(url_photo2).replace('{size}', 'z')
+            return [url_photo1,url_photo2]
+        else:
+            logging.error('сервер недоступен ошибка в photo_hotels')
+    except TimeoutError as err:
         logging.error(err)
         return ['https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png',
                 'https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png']

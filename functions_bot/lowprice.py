@@ -1,9 +1,10 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton,InputMediaPhoto
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton,ReplyKeyboardRemove
 from aiogram.dispatcher import FSMContext
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
-from create_bot import search_params,search_low_states
+from create_bot import search_params,search_low_states,calendar,dp
 from request.request import hotel_search, locations_city
+from aiogram_calendar import simple_cal_callback, SimpleCalendar
 from data_base import peewee_bd
 import logging
 
@@ -53,6 +54,7 @@ async def location_confirmation(coll : types.CallbackQuery):
     await search_low_states.number_city.set() # машино-состояние количество городов
 
 
+
 # @dp.message_handler(state=search_low_states.number_city)
 async def low_price_2(message: types.Message, state: FSMContext):
 
@@ -65,23 +67,45 @@ async def low_price_2(message: types.Message, state: FSMContext):
         search_params['count'] = int(count)
         if  int(search_params['count']) > 5 or int(search_params['count'])<0:
             raise Exception
-        keyboard = InlineKeyboardMarkup(row_width=2)
-        button_list = [InlineKeyboardButton(text=number, callback_data=f'да{number}') for number in
-                       ['Да', 'Нет']]
-        keyboard.add(*button_list)
-        await message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
-        await state.reset_state()  # сброс состояний
+        await state.reset_state()
+        await message.answer("Пожалуйста выберите дату заселения: ", reply_markup=await SimpleCalendar().start_calendar())
+
 
     except Exception:
         logging.error('Пользователь неправильно ввел данные')
         await message.answer('Некорректный ввод.')
         await message.answer('Введите число не более 5')
 
+
+@dp.callback_query_handler(simple_cal_callback.filter())
+async def process_simple_calendar(callback_query: types.CallbackQuery, callback_data: dict):
+    selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
+    if selected:
+        await callback_query.message.answer(
+            f'Вы выбрали {date.strftime("%Y-%m-%d")}',reply_markup=ReplyKeyboardRemove())
+        search_params['check_in']=date.strftime("%Y-%m-%d")
+        await calendar.check_in.set()
+
+
+
+
+        # keyboard = InlineKeyboardMarkup(row_width=2)
+        # button_list = [InlineKeyboardButton(text=number, callback_data=f'да{number}') for number in
+        #                ['Да', 'Нет']]
+        # keyboard.add(*button_list)
+        # await callback_query.message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
+
+
+@dp.callback_query_handler(state=calendar.check_in)
+async def check_in(callback_query: types.CallbackQuery):
+    print(callback_query)
+    await callback_query.message.answer("Пожалуйста выберите дату выселения: ",
+                                        reply_markup=await SimpleCalendar().start_calendar())
+
+
 # @dp.register_callback_query_handler(Text(startswith='да'))
 async def photo(massege: types.CallbackQuery):
     await massege.answer('Подтверждено')
-
-
     if massege['data'][2:]== 'Да':
         sort_by = 'PRICE'
         await massege.message.answer('Уже ищу!')
@@ -131,10 +155,13 @@ def register_handlers_lowprice(dp : Dispatcher):
     dp.register_message_handler(low_price_0,commands=['lowprice'])
     dp.register_message_handler(low_price_1,state=search_low_states.city)
     dp.register_message_handler(low_price_2,state=search_low_states.number_city)
+    # dp.register_message_handler(check_in,simple_cal_callback.filter())
+
 
 def register_handlers_examination(dp:Dispatcher):
     dp.register_callback_query_handler(location_confirmation,Text(startswith='id'))
     dp.register_callback_query_handler(photo,Text(startswith='да'))
+    dp.register_callback_query_handler(process_simple_calendar,simple_cal_callback.filter())
 
 
 
