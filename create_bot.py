@@ -19,17 +19,18 @@ search_params = {'town': 0,
                  'check_in':0,
                  'check_out':0}
 
-class calendar(StatesGroup):
-    check_in = State()
-    check_out = State()
 
 class search_low_states(StatesGroup):
     city = State()
     number_city = State()
+    date_start = State()
+    date_finish = State()
 
 class search_high_states(StatesGroup):
     city = State()
     number_city = State()
+    date_start = State()
+    date_finish = State()
 
 class search_best_states(StatesGroup):
     city = State()

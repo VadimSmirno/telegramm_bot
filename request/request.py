@@ -1,5 +1,5 @@
 import requests,re,logging
-from requests.exceptions import Timeout
+from requests.exceptions import Timeout,ReadTimeout
 from create_bot import RapidAPI
 from bs4 import BeautifulSoup
 from data_base import peewee_bd
@@ -8,11 +8,10 @@ import time
 
 
 
-def hotel_search(destinationId, sort_by, count):
-
+def hotel_search(destinationId, sort_by, count,checkIn,checkOut):
     url = "https://hotels4.p.rapidapi.com/properties/list"
-    querystring = {"destinationId": destinationId, "pageNumber": "1", "pageSize": count, "checkIn": "2020-01-08",
-                    "checkOut": "2020-01-15", "adults1": "1", "sortOrder": sort_by, "locale": "ru_RU", "currency": "RUB"}
+    querystring = {"destinationId": destinationId, "pageNumber": "1", "pageSize": count, "checkIn": checkIn,
+                    "checkOut": checkOut, "adults1": "1", "sortOrder": sort_by, "locale": "ru_RU", "currency": "RUB"}
 
     headers = {
         'x-rapidapi-key': RapidAPI,
@@ -50,7 +49,7 @@ def hotel_search(destinationId, sort_by, count):
             lst_db_data.append([name,id_hotels,rate,adr,price,datetime.datetime.now(),url_photo[0],url_photo[1],0.0])
         with peewee_bd.db:
             peewee_bd.HotelInfo.insert_many(lst_db_data).execute()
-    except (ConnectionError,TimeoutError):
+    except (ConnectionError,TimeoutError,ReadTimeout):
         return 'Ошибка!'
 
 
@@ -172,7 +171,7 @@ def photo_hotels(id_hotels):
             return [url_photo1,url_photo2]
         else:
             logging.error('сервер недоступен ошибка в photo_hotels')
-    except Timeout  as err:
+    except (Timeout,ReadTimeout)  as err:
         logging.error(err)
         return ['https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png',
                 'https://nastolkiperm.ru/image/cache/data/Games/A-A-A/Bezymyannnnnnyy-500x500.png']
