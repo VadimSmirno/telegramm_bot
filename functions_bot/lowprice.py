@@ -60,8 +60,8 @@ async def location_confirmation(coll : types.CallbackQuery):
 async def low_price_2(message: types.Message, state: FSMContext):
 
     """ из машино-состояния забираем количество отелей
-     делаем request запрос и отправляем в чат нужную информацию
-     создаем инлайн кнопки (Да,Нет) запрашиваем нужны ли фото"""""
+     проверяем корректность введеных данных
+     Создаем календарь для выбора даты заселения"""""
 
     count = message.text
     try:
@@ -82,6 +82,10 @@ async def low_price_2(message: types.Message, state: FSMContext):
 
 # @dp.callback_query_handler(simple_cal_callback.filter(),state=search_low_states.date_start)
 async def process_simple_calendar(callback_query: types.CallbackQuery, callback_data,state:FSMContext):
+
+    """"Отлавливаем событие (дата заселения) сравниваем с текущей датой, если данные не корректны- переспрашиваем
+     иначе выводим календарь чтобы спросить дату выселения"""""
+
     selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
     if selected:
         async with state.proxy():
@@ -103,6 +107,9 @@ async def process_simple_calendar(callback_query: types.CallbackQuery, callback_
 
 # @dp.callback_query_handler(simple_cal_callback.filter(), state=search_low_states.date_finish)
 async def process_simple_calendar2(callback_query: types.CallbackQuery, callback_data, state: FSMContext):
+
+    """ Отлавливаем событие (Дату выселения) если данные некорректны - переспрашиваем, иначе 
+    выводим инлайн клавиатуру с кнопками (Да,Нет)"""""
     selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
     if selected:
         async with state.proxy():
@@ -124,6 +131,13 @@ async def process_simple_calendar2(callback_query: types.CallbackQuery, callback
 
 # @dp.register_callback_query_handler(Text(startswith='да'))
 async def photo(massege: types.CallbackQuery):
+
+    """Вызываем функцию hotel_search в которой собирается информация по отелям через API.
+    из базы данных отправляем нужную информацию сообщением пользователю. 
+    Если пользователь нажал да, то из базы данных достаем ссылку  на фото и отпарвляем
+    через MediaGroup. Если нет, то фото не отправляются. 
+    """""
+
     await massege.answer('Подтверждено')
     checkIn = search_params['check_in']
     checkOut = search_params['check_out']
@@ -178,6 +192,9 @@ async def photo(massege: types.CallbackQuery):
 
 
 def register_handlers_lowprice(dp : Dispatcher):
+
+    """ Регистрируем message_handler"""""
+
     dp.register_message_handler(low_price_0,commands=['lowprice'])
     dp.register_message_handler(low_price_1,state=search_low_states.city)
     dp.register_message_handler(low_price_2,state=search_low_states.number_city)
@@ -185,6 +202,9 @@ def register_handlers_lowprice(dp : Dispatcher):
 
 
 def register_handlers_examination(dp:Dispatcher):
+
+    """регистрируем  callback_query_handler"""""
+
     dp.register_callback_query_handler(location_confirmation,Text(startswith='id'))
     dp.register_callback_query_handler(photo,Text(startswith='да'))
     dp.register_callback_query_handler(process_simple_calendar,simple_cal_callback.filter())

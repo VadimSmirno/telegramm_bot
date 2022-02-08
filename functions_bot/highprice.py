@@ -62,7 +62,7 @@ async def high_price_2(message: types.Message, state: FSMContext):
 
     """Отлавливаем сколько нужно вывести отелей, если данные некоррекиные - 
     переспрашиваем 
-    Сождаем кнопки (Да, Нет) спрашиваем нужны ли фото"""""
+    Создаем календарь для выбора даты заселения"""""
 
     count = message.text
     try:
@@ -79,8 +79,12 @@ async def high_price_2(message: types.Message, state: FSMContext):
         await message.answer('Некорректный ввод.')
         await message.answer('Введите число не более 5')
 
-# @dp.callback_query_handler(simple_cal_callback.filter(),state=search_low_states.date_start)
+# @dp.callback_query_handler(simple_cal_callback.filter(),state=search_high_states.date_start)
 async def process_simple_calendar(callback_query: types.CallbackQuery, callback_data,state:FSMContext):
+
+    """"Отлавливаем событие (дата заселения) сравниваем с текущей датой, если данные не корректны- переспрашиваем
+         иначе выводим календарь чтобы спросить дату выселения"""""
+
     selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
     if selected:
         async with state.proxy():
@@ -100,8 +104,12 @@ async def process_simple_calendar(callback_query: types.CallbackQuery, callback_
 
 
 
-# @dp.callback_query_handler(simple_cal_callback.filter(), state=search_low_states.date_finish)
+# @dp.callback_query_handler(simple_cal_callback.filter(), state=search_high_states.date_finish)
 async def process_simple_calendar2(callback_query: types.CallbackQuery, callback_data, state: FSMContext):
+
+    """ Отлавливаем событие (Дату выселения) если данные некорректны - переспрашиваем, иначе 
+        выводим инлайн клавиатуру с кнопками (Да,Нет)"""""
+
     selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
     if selected:
         async with state.proxy():
