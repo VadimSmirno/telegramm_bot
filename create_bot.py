@@ -37,6 +37,8 @@ class search_best_states(StatesGroup):
     number_city = State()
     price = State()
     distens = State()
+    date_start = State()
+    date_finish = State()
 
 
 

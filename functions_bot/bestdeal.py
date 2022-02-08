@@ -5,6 +5,8 @@ from request.request import locations_city
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher.filters import Text
 from request.request import bestdeal
+from aiogram_calendar import simple_cal_callback, SimpleCalendar
+import datetime
 import logging
 from data_base import peewee_bd
 
@@ -106,12 +108,16 @@ async def bestdeal_distens(message: types.Message, state: FSMContext):
         if int(distens[0]) < int(distens[1]):
             search_params['distens'] = distens
 
-            keyboard = InlineKeyboardMarkup(row_width=2)
-            button_list = [InlineKeyboardButton(text=number, callback_data=f'wq{number}') for number in
-                           ['Да', 'Нет']]
-            keyboard.add(*button_list)
-            await message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
+            # keyboard = InlineKeyboardMarkup(row_width=2)
+            # button_list = [InlineKeyboardButton(text=number, callback_data=f'wq{number}') for number in
+            #                ['Да', 'Нет']]
+            # keyboard.add(*button_list)
+            # await message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
             await state.reset_state()  # сброс состояний
+            await message.answer("Пожалуйста выберите дату заселения: ",
+                                 reply_markup=await SimpleCalendar().start_calendar())
+            await search_best_states.date_start.set()
+
         else:
             logging.error('Пользователь ввел некорректные данные')
             raise ValueError
@@ -121,6 +127,46 @@ async def bestdeal_distens(message: types.Message, state: FSMContext):
         await message.answer('Некорректные данные')
         await message.answer('Введите диапазон расстояний через "-", например 1-5')
         await search_best_states.distens.set()
+
+# @dp.callback_query_handler(simple_cal_callback.filter(),state=search_best_states.date_start)
+async def process_simple_calendar(callback_query: types.CallbackQuery, callback_data,state:FSMContext):
+    selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
+    if selected:
+        async with state.proxy():
+            date_start = datetime.datetime.strptime(date.strftime("%Y-%m-%d"), '%Y-%m-%d').date()
+
+        now = datetime.datetime.now().strftime('%Y-%m-%d')
+        if now > str(date_start):
+            await callback_query.message.answer(f"Дата заселения дожна быть больше {now}: ",
+                                 reply_markup=await SimpleCalendar().start_calendar())
+
+        else:
+            search_params['check_in'] = date_start
+            await search_best_states.date_finish.set()
+            await callback_query.message.edit_text(f'Начало бронирования: {date_start}')
+            await callback_query.message.answer('Выберите дату выселения:\n',
+                reply_markup=await SimpleCalendar().start_calendar())
+
+# @dp.callback_query_handler(simple_cal_callback.filter(), state=search_best_states.date_finish)
+async def process_simple_calendar2(callback_query: types.CallbackQuery, callback_data, state: FSMContext):
+    selected, date = await SimpleCalendar().process_selection(callback_query, callback_data)
+    if selected:
+        async with state.proxy():
+            date_finish = datetime.datetime.strptime(date.strftime("%Y-%m-%d"), '%Y-%m-%d').date()
+            if str(date_finish) < str(search_params['check_in']):
+                await callback_query.message.answer("Дата выселения должна быть больше даты заселения: ",
+                                                    reply_markup=await SimpleCalendar().start_calendar())
+
+            else:
+                search_params['check_out'] = date_finish
+                await callback_query.message.edit_text(f'Конец бронирования: {date_finish}')
+                await state.reset_state()
+                keyboard = InlineKeyboardMarkup(row_width=2)
+                button_list = [InlineKeyboardButton(text=number, callback_data=f'wq{number}') for number in
+                               ['Да', 'Нет']]
+                keyboard.add(*button_list)
+                await callback_query.message.answer('Хотите посмотреть фото отелей?', reply_markup=keyboard)
+
 
 # @dp.callback_query_handler(Text(startswith='wq'))
 async def photo_bestdeal(massege: types.CallbackQuery):
@@ -132,6 +178,8 @@ async def photo_bestdeal(massege: types.CallbackQuery):
     если Нет, от информация и базы данных отправляется без фотографий"""""
 
     await massege.answer('Подтверждено')
+    checkIn = search_params['check_in']
+    checkOut = search_params['check_out']
     distens = search_params['distens']
     priceMin = search_params['price'][0]
     priceMax = search_params['price'][1]
@@ -140,7 +188,9 @@ async def photo_bestdeal(massege: types.CallbackQuery):
     if massege['data'][2:] == 'Да':
         await massege.message.answer('Уже ищу!')
         try:
-            res = bestdeal(search_params['destinationId'], priceMin, priceMax, distensMin, distensMax, search_params['count'])
+            res = bestdeal(search_params['destinationId'], priceMin,
+                           priceMax, distensMin, distensMax,
+                           search_params['count'],checkIn,checkOut)
             if res == 'По Вашим запросам ничего не найдено':
                 await massege.message.answer('По Вашим запросам ничего не найдено')
             else:
@@ -169,7 +219,8 @@ async def photo_bestdeal(massege: types.CallbackQuery):
     else:
         await massege.message.answer('Уже ищу!')
         try:
-            bestdeal(search_params['destinationId'], priceMin, priceMax, distensMin, distensMax,search_params['count'])
+            bestdeal(search_params['destinationId'], priceMin, priceMax, distensMin,
+                     distensMax,search_params['count'],checkIn,checkOut)
             with peewee_bd.db:
                 msg = peewee_bd.HotelInfo.select(). \
                     order_by(peewee_bd.HotelInfo.id.desc()). \
@@ -208,3 +259,7 @@ def register_callback_query_handler(dp: Dispatcher):
     dp.register_callback_query_handler(location_confirmation,Text(startswith='num'))
     dp.register_callback_query_handler(ansve_count_hotel,Text(startswith='_'))
     dp.register_callback_query_handler(photo_bestdeal,Text(startswith='wq'))
+    dp.register_callback_query_handler(process_simple_calendar,simple_cal_callback.filter(),
+                                       state=search_best_states.date_start)
+    dp.register_callback_query_handler(process_simple_calendar2,simple_cal_callback.filter(),
+                                       state=search_best_states.date_finish)

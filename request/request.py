@@ -79,11 +79,11 @@ def locations_city(town) -> dict:
         logging.error(e)
         logging.error('Ошибка запроса')
 
-def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count):
+def bestdeal(destinationId,priceMin,priceMax,distensMin, distensMax,count,checkIn,checkOut):
     url = "https://hotels4.p.rapidapi.com/properties/list"
 
-    querystring = {"destinationId": destinationId, "pageNumber": "1", "pageSize": "10", "checkIn": "2020-01-08",
-                   "checkOut": "2020-01-15", "adults1": "1","priceMin":priceMin,"priceMax":priceMax, "sortOrder": "PRICE", "locale": "ru_RU", "currency": "RUB"}
+    querystring = {"destinationId": destinationId, "pageNumber": "1", "pageSize": "10", "checkIn": checkIn,
+                   "checkOut": checkOut, "adults1": "1","priceMin":priceMin,"priceMax":priceMax, "sortOrder": "PRICE", "locale": "ru_RU", "currency": "RUB"}
 
     headers = {
         'x-rapidapi-host': "hotels4.p.rapidapi.com",
