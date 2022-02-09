@@ -1,6 +1,6 @@
 from aiogram.dispatcher import FSMContext
 from aiogram import types, Dispatcher
-from create_bot import search_best_states,search_params
+from create_bot import SearchBestStates,search_params
 from request.request import locations_city
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher.filters import Text
@@ -19,7 +19,7 @@ async def bestdeal_city(message: types.Message):
     """"Запрашиваем город и переходим в машино-состояние city"""""
 
     await message.reply('В каком городе ищем?')
-    await search_best_states.city.set()
+    await SearchBestStates.city.set()
 
 
 
@@ -33,12 +33,17 @@ async def bestdeal_locations_city(message: types.Message, state: FSMContext):
         town = message.text
         search_params['town'] = town
         locations_city_dct = locations_city(town=town)
-        keyboard = InlineKeyboardMarkup(row_width=1)
-        button_list = [InlineKeyboardButton(text=key, callback_data=f'num{values}')
-                       for key, values in locations_city_dct.items()]
-        keyboard.add(*button_list)
-        await message.answer('Подтвердите', reply_markup=keyboard)
-        await state.reset_state()
+        if len(locations_city_dct)!=0:
+            keyboard = InlineKeyboardMarkup(row_width=1)
+            button_list = [InlineKeyboardButton(text=key, callback_data=f'num{values}')
+                           for key, values in locations_city_dct.items()]
+            keyboard.add(*button_list)
+            await message.answer('Подтвердите', reply_markup=keyboard)
+            await state.reset_state()
+        else:
+            await message.answer(f'Ничего не нашел в городе {town}')
+            await message.answer('Может в другом городе посмотрим отели?')
+            await SearchBestStates.city.set()
     except AttributeError:
         logging.error('Ошибка в функции locations_city')
 
@@ -69,7 +74,7 @@ async def ansve_count_hotel(massege: types.CallbackQuery):
     search_params['count'] = count
     await massege.message.answer('Введите диапазон цен через "-", например 1000-5000')
     await massege.answer()
-    await search_best_states.price.set()
+    await SearchBestStates.price.set()
 
 # @dp.message_handler(state=search_best_states.price)
 async def message_check(massege: types.Message):
@@ -84,16 +89,16 @@ async def message_check(massege: types.Message):
             search_params['price'] = price
             await massege.answer('На каком расстоянии в км от центра посмотреть отели? '
                                  'введите через "-" Например: 0-10')
-            await search_best_states.distens.set()
+            await SearchBestStates.distens.set()
         else:
             await massege.answer('Некорректные данные')
             await massege.answer('Введите диапазон цен через "-", Например: 1000-5000')
-            await search_best_states.price.set()
+            await SearchBestStates.price.set()
     except (ValueError, TypeError):
         logging.error('Пользователь ввел некорректные данные')
         await massege.answer('Некорректные данные')
         await massege.answer('Введите диапазон цен через "-", например 1000-5000')
-        await search_best_states.price.set()
+        await SearchBestStates.price.set()
 
 
 # @dp.message_handler(state=search_best_states.distens)
@@ -110,7 +115,7 @@ async def bestdeal_distens(message: types.Message, state: FSMContext):
             await state.reset_state()  # сброс состояний
             await message.answer("Пожалуйста выберите дату заселения: ",
                                  reply_markup=await SimpleCalendar().start_calendar())
-            await search_best_states.date_start.set()
+            await SearchBestStates.date_start.set()
 
         else:
             logging.error('Пользователь ввел некорректные данные')
@@ -120,7 +125,7 @@ async def bestdeal_distens(message: types.Message, state: FSMContext):
         logging.error('Пользователь ввел некорректные данные')
         await message.answer('Некорректные данные')
         await message.answer('Введите диапазон расстояний через "-", например 1-5')
-        await search_best_states.distens.set()
+        await SearchBestStates.distens.set()
 
 # @dp.callback_query_handler(simple_cal_callback.filter(),state=search_best_states.date_start)
 async def process_simple_calendar(callback_query: types.CallbackQuery, callback_data,state:FSMContext):
@@ -140,7 +145,7 @@ async def process_simple_calendar(callback_query: types.CallbackQuery, callback_
 
         else:
             search_params['check_in'] = date_start
-            await search_best_states.date_finish.set()
+            await SearchBestStates.date_finish.set()
             await callback_query.message.edit_text(f'Начало бронирования: {date_start}')
             await callback_query.message.answer('Выберите дату выселения:\n',
                 reply_markup=await SimpleCalendar().start_calendar())
@@ -249,9 +254,9 @@ def register_handlers_bestdeal(dp : Dispatcher):
     """ регистрируем message_handler"""""
 
     dp.register_message_handler(bestdeal_city,commands=['bestdeal'])
-    dp.register_message_handler(bestdeal_locations_city,state=search_best_states.city)
-    dp.register_message_handler(bestdeal_distens,state=search_best_states.distens)
-    dp.register_message_handler(message_check,state=search_best_states.price)
+    dp.register_message_handler(bestdeal_locations_city,state=SearchBestStates.city)
+    dp.register_message_handler(bestdeal_distens,state=SearchBestStates.distens)
+    dp.register_message_handler(message_check,state=SearchBestStates.price)
 
 
 def register_callback_query_handler(dp: Dispatcher):
@@ -262,6 +267,6 @@ def register_callback_query_handler(dp: Dispatcher):
     dp.register_callback_query_handler(ansve_count_hotel,Text(startswith='_'))
     dp.register_callback_query_handler(photo_bestdeal,Text(startswith='wq'))
     dp.register_callback_query_handler(process_simple_calendar,simple_cal_callback.filter(),
-                                       state=search_best_states.date_start)
+                                       state=SearchBestStates.date_start)
     dp.register_callback_query_handler(process_simple_calendar2,simple_cal_callback.filter(),
-                                       state=search_best_states.date_finish)
+                                       state=SearchBestStates.date_finish)

@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher.filters import Text
 from create_bot import search_params
 from request.request import hotel_search, locations_city
-from create_bot import search_high_states
+from create_bot import SearchHighStates
 from data_base import peewee_bd
 from aiogram_calendar import simple_cal_callback,SimpleCalendar
 import logging
@@ -21,7 +21,7 @@ async def high_price_0(message: types.Message):
          через машино состояние"""""
 
     await message.reply('В каком городе ищем?')
-    await search_high_states.city.set() # переход в машиносостояние город
+    await SearchHighStates.city.set() # переход в машиносостояние город
 
 
 # @dp.message_handler(state=search_high_states.city)
@@ -35,13 +35,17 @@ async def high_price_1(message: types.Message, state: FSMContext):
     search_params['town'] = town
     try:
         locations_city_dct = locations_city(town=town)
-
-        keyboard = InlineKeyboardMarkup(row_width=1)
-        button_list = [InlineKeyboardButton(text=key, callback_data=f'values{values}')
-                       for key, values in locations_city_dct.items()]
-        keyboard.add(*button_list)
-        await message.answer('Подтвердите', reply_markup=keyboard)
-        await state.reset_state()
+        if len(locations_city_dct)!=0:
+            keyboard = InlineKeyboardMarkup(row_width=1)
+            button_list = [InlineKeyboardButton(text=key, callback_data=f'values{values}')
+                           for key, values in locations_city_dct.items()]
+            keyboard.add(*button_list)
+            await message.answer('Подтвердите', reply_markup=keyboard)
+            await state.reset_state()
+        else:
+            await message.answer(f'Ничего не нашел в городе {town}')
+            await message.answer('Может в другом городе посмотрим отели?')
+            await SearchHighStates.city.set()
     except AttributeError:
         logging.error('Ошибка в функции locations_city')
 
@@ -54,7 +58,7 @@ async def location_confirmation(coll : types.CallbackQuery):
     destinationId = coll['data'][6:]
     search_params['destinationId'] = destinationId
     await coll.message.answer('Сколько отелей нужно вывести? от 1 до 5')
-    await search_high_states.number_city.set() # машино-состояние количество городов
+    await SearchHighStates.number_city.set() # машино-состояние количество городов
 
 
 # @dp.message_handler(state=search_high_states.number_city)
@@ -72,7 +76,7 @@ async def high_price_2(message: types.Message, state: FSMContext):
         await state.reset_state()
         await message.answer("Пожалуйста выберите дату заселения: ",
                              reply_markup=await SimpleCalendar().start_calendar())
-        await search_high_states.date_start.set()
+        await SearchHighStates.date_start.set()
 
     except Exception:
         logging.error('Пользователь неправильно ввел данные')
@@ -97,7 +101,7 @@ async def process_simple_calendar(callback_query: types.CallbackQuery, callback_
 
         else:
             search_params['check_in'] = date_start
-            await search_high_states.date_finish.set()
+            await SearchHighStates.date_finish.set()
             await callback_query.message.edit_text(f'Начало бронирования: {date_start}')
             await callback_query.message.answer('Выберите дату выселения:\n',
                 reply_markup=await SimpleCalendar().start_calendar())
@@ -190,8 +194,8 @@ def register_handlers_highprice(dp : Dispatcher):
     """ Регистрируем message_handler """""
 
     dp.register_message_handler(high_price_0,commands=['highprice'])
-    dp.register_message_handler(high_price_1,state=search_high_states.city)
-    dp.register_message_handler(high_price_2,state=search_high_states.number_city)
+    dp.register_message_handler(high_price_1,state=SearchHighStates.city)
+    dp.register_message_handler(high_price_2,state=SearchHighStates.number_city)
 
 def register_handlers_callback_query_handler(dp : Dispatcher):
 
@@ -200,6 +204,6 @@ def register_handlers_callback_query_handler(dp : Dispatcher):
     dp.register_callback_query_handler(location_confirmation, Text(startswith='values'))
     dp.register_callback_query_handler(photo_high, Text(startswith='qw'))
     dp.register_callback_query_handler(process_simple_calendar,simple_cal_callback.filter(),
-                                       state=search_high_states.date_start)
+                                       state=SearchHighStates.date_start)
     dp.register_callback_query_handler(process_simple_calendar2,simple_cal_callback.filter(),
-                                       state=search_high_states.date_finish)
+                                       state=SearchHighStates.date_finish)

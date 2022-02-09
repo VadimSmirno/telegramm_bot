@@ -20,19 +20,19 @@ search_params = {'town': 0,
                  'check_out':0}
 
 
-class search_low_states(StatesGroup):
+class SearchLowStates(StatesGroup):
     city = State()
     number_city = State()
     date_start = State()
     date_finish = State()
 
-class search_high_states(StatesGroup):
+class SearchHighStates(StatesGroup):
     city = State()
     number_city = State()
     date_start = State()
     date_finish = State()
 
-class search_best_states(StatesGroup):
+class SearchBestStates(StatesGroup):
     city = State()
     number_city = State()
     price = State()

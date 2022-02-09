@@ -1,8 +1,8 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton,ReplyKeyboardRemove
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher import FSMContext
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
-from create_bot import search_params,search_low_states
+from create_bot import search_params,SearchLowStates
 from request.request import hotel_search, locations_city
 from aiogram_calendar import simple_cal_callback, SimpleCalendar
 from data_base import peewee_bd
@@ -19,7 +19,7 @@ async def low_price_0(message: types.Message):
      через машино состояние"""""
 
     await message.reply('В каком городе ищем?')
-    await search_low_states.city.set()  # переход в машино-состояние город
+    await SearchLowStates.city.set()  # переход в машино-состояние город
 
 
 # @dp.message_handler(state=search_low_states.city)
@@ -33,13 +33,17 @@ async def low_price_1(message: types.Message, state: FSMContext):
         town = message.text  # город
         search_params['town'] = town
         locations_city_dct = locations_city(town=town)
-
-        keyboard = InlineKeyboardMarkup(row_width=1)
-        button_list = [InlineKeyboardButton(text=key, callback_data=f'id{values}')
-                       for key, values in locations_city_dct.items()]
-        keyboard.add(*button_list)
-        await message.answer('Подтвердите', reply_markup=keyboard)
-        await state.reset_state()
+        if len(locations_city_dct)!=0:
+            keyboard = InlineKeyboardMarkup(row_width=1)
+            button_list = [InlineKeyboardButton(text=key, callback_data=f'id{values}')
+                           for key, values in locations_city_dct.items()]
+            keyboard.add(*button_list)
+            await message.answer('Подтвердите', reply_markup=keyboard)
+            await state.reset_state()
+        else:
+            await message.answer(f'Ничего не нашел в городе {town}')
+            await message.answer('Может в другом городе посмотрим отели?')
+            await SearchLowStates.city.set()
     except AttributeError:
         logging.error('Ошибка в функции locations_city')
 
@@ -52,7 +56,7 @@ async def location_confirmation(coll : types.CallbackQuery):
     destinationId = coll['data'][2:]
     search_params['destinationId'] = destinationId
     await coll.message.answer('Сколько отелей нужно вывести? от 1 до 5')
-    await search_low_states.number_city.set() # машино-состояние количество городов
+    await SearchLowStates.number_city.set() # машино-состояние количество городов
 
 
 
@@ -70,7 +74,7 @@ async def low_price_2(message: types.Message, state: FSMContext):
             raise Exception
         await state.reset_state()
         await message.answer("Пожалуйста выберите дату заселения: ", reply_markup=await SimpleCalendar().start_calendar())
-        await search_low_states.date_start.set()
+        await SearchLowStates.date_start.set()
 
     except Exception:
         logging.error('Пользователь неправильно ввел данные')
@@ -98,7 +102,7 @@ async def process_simple_calendar(callback_query: types.CallbackQuery, callback_
 
         else:
             search_params['check_in'] = date_start
-            await search_low_states.date_finish.set()
+            await SearchLowStates.date_finish.set()
             await callback_query.message.edit_text(f'Начало бронирования: {date_start}')
             await callback_query.message.answer('Выберите дату выселения:\n',
                 reply_markup=await SimpleCalendar().start_calendar())
@@ -196,8 +200,8 @@ def register_handlers_lowprice(dp : Dispatcher):
     """ Регистрируем message_handler"""""
 
     dp.register_message_handler(low_price_0,commands=['lowprice'])
-    dp.register_message_handler(low_price_1,state=search_low_states.city)
-    dp.register_message_handler(low_price_2,state=search_low_states.number_city)
+    dp.register_message_handler(low_price_1,state=SearchLowStates.city)
+    dp.register_message_handler(low_price_2,state=SearchLowStates.number_city)
 
 
 
@@ -209,8 +213,8 @@ def register_handlers_examination(dp:Dispatcher):
     dp.register_callback_query_handler(photo,Text(startswith='да'))
     dp.register_callback_query_handler(process_simple_calendar,simple_cal_callback.filter())
     dp.register_callback_query_handler(process_simple_calendar,simple_cal_callback.filter(),
-                                       state=search_low_states.date_start)
+                                       state=SearchLowStates.date_start)
     dp.register_callback_query_handler(process_simple_calendar2, simple_cal_callback.filter(),
-                                       state=search_low_states.date_finish)
+                                       state=SearchLowStates.date_finish)
 
 
