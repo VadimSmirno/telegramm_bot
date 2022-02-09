@@ -201,6 +201,7 @@ async def photo_bestdeal(massege: types.CallbackQuery):
             if res == 'По Вашим запросам ничего не найдено':
                 await massege.message.answer('По Вашим запросам ничего не найдено')
             else:
+
                 with peewee_bd.db:
                     msg = peewee_bd.HotelInfo.select().\
                         order_by(peewee_bd.HotelInfo.id.desc()).\
