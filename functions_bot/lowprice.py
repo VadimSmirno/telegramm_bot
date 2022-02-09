@@ -71,10 +71,13 @@ async def low_price_2(message: types.Message, state: FSMContext):
     try:
         search_params['count'] = int(count)
         if  int(search_params['count']) > 5 or int(search_params['count'])<0:
-            raise Exception
-        await state.reset_state()
-        await message.answer("Пожалуйста выберите дату заселения: ", reply_markup=await SimpleCalendar().start_calendar())
-        await SearchLowStates.date_start.set()
+            logging.error('Пользователь неправильно ввел данные')
+            await message.answer('Некорректный ввод.')
+            await message.answer('Введите число не более 5')
+        else:
+            await state.reset_state()
+            await message.answer("Пожалуйста выберите дату заселения: ", reply_markup=await SimpleCalendar().start_calendar())
+            await SearchLowStates.date_start.set()
 
     except Exception:
         logging.error('Пользователь неправильно ввел данные')
